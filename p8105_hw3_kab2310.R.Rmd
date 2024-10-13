@@ -1,15 +1,12 @@
 ---
-  title: "P8105 Homework 3"
+title: "P8105 Homework 3"
 author: "Kamiah Brown"
 data: 2024-10-16
 output: github_document
 ---
 ```{r}
 install.packages(
-  c("tidyverse", "knitr", "rmarkdown", "janitor", "broom", "here", "readxl", 
-    "haven", "rnoaa", "ggridges", "ggthemes", "leaflet", "viridis", "skimr", 
-    "rvest", "httr", "flexdashboard", "devtools", "usethis", "modelr", "mgcv", 
-    "tidytext", "shiny", "patchwork", "glmnet", "plotly"))
+  c("tidyverse", "knitr", "rmarkdown", "janitor", "broom", "here", "readxl", "haven", "rnoaa", "ggridges", "ggthemes", "leaflet", "viridis", "skimr","rvest", "httr", "flexdashboard", "devtools", "usethis", "modelr", "mgcv","tidytext", "shiny", "patchwork", "glmnet", "plotly"))
 
 remotes::install_github("p8105/p8105.datasets")
 remotes::install_github("ropensci/rnoaa")
@@ -239,7 +236,8 @@ ggplot(final_data, aes(x = as.numeric(minute), y = MIMS, color = sex)) +
   theme(legend.position = "bottom")
 ```
 
-#three-panel plot that shows the 24-hour activity time courses for each education level and use color to indicate sex
+#Problem 2
+three-panel plot that shows the 24-hour activity time courses for each education level and use color to indicate sex
 ```{r}
 accelerometer_long <- accelerometer_data |>
   pivot_longer(cols = starts_with("min"),  
@@ -258,10 +256,11 @@ demographic_data_clean <- demographic_data_clean |>
 final_data <- accelerometer_long |>
   left_join(demographic_data_clean, by = "SEQN")
 
+#Plot 
 ggplot(final_data, aes(x = minute, y = MIMS, color = sex)) +
   geom_line(alpha = 0.6) +  
-  geom_smooth(method = "lm", se = FALSE) +  
-  facet_wrap(~ education, scales = "free_y") +  
+  geom_smooth(method = "loess", se = FALSE) +  
+  facet_wrap(~ education, scales = "free_y") + 
   labs(
     title = "24-Hour Activity Time Courses by Education Level and Gender",
     x = "Time (Minutes from Midnight)",
@@ -270,3 +269,52 @@ ggplot(final_data, aes(x = minute, y = MIMS, color = sex)) +
   ) +
   theme_minimal() + 
   theme(legend.position = "bottom")
+```
+In the first graph, representing individuals with 'less than high school' education, both men and women exhibit similar activity patterns throughout the day. Activity levels steadily increase during daylight hours and decrease at night, with no significant peaks observed, indicating consistent levels of activity across both genders.
+In the 'high school' group, the overall trend is similar to the 'less than high school' group. However, men show higher peaks in activity during the early morning hours compared to women, suggesting more intense physical activity or work engagement by men in the mornings.
+Lastly, the 'some college' group demonstrates the greatest variability. Men tend to exhibit higher activity levels in the morning compared to women, with more pronounced peaks in their activity. This suggests differences in daily routines or physical activity patterns between genders, especially in the early part of the day. 
+
+#problem 3
+```{r}
+jan_2020 <- read_csv("Jan 2020 Citi.csv")
+jan_2024 <- read_csv("Jan 2024 Citi.csv")
+july_2020 <- read_csv("July 2020 Citi.csv")
+july_2024 <- read_csv("July 2024 Citi.csv")
+
+citibikes <- bind_rows(jan_2020, jan_2024, july_2020, july_2024)
+
+#Clean data after merging
+citibikes_cleaned <- citibikes |>
+  clean_names() |>  
+  drop_na() |>   
+  filter(duration < 240 * 60) |>
+  distinct() 
+
+#overall 
+citi_summary_stats <- citibikes_cleaned |>
+  summarise(
+    total_rides = n(),
+    avg_duration = mean(duration),
+    max_duration = max(duration),
+    min_duration = min(duration),
+    total_members = sum(member_casual == "member"),
+    total_casual = sum(member_casual == "casual")
+  )
+
+glimpse(citibikes_cleaned)
+citi_summary_stats
+```
+The cleaned citi bike dataset contains 99,253 rides, with the average rude duration being 13.8. The longest recorded ride duration was 239 minutes. The 
+minimum duration was1 minute. 79,711 rides were taken by Citi Bike members and 19,542 rides taken by casual riders.
+
+#the total number of rides in each combination of year and month separating casual riders and Citi Bike members.
+```{r}
+citibikes_cleaned <- citibikes_cleaned |>
+  mutate(year = case_when(
+    str_detect(ride_id, "2020") ~ "2020",
+    str_detect(ride_id, "2024") ~ "2024"
+  )) |>
+  mutate(month = case_when(
+    str_detect(ride_id, "Jan") ~ "January",
+    str_detect(ride_id, "July") ~ "July"
+  ))

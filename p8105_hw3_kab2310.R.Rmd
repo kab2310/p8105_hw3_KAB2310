@@ -1,21 +1,25 @@
 ---
-title: "P8105 Homework 3"
-author: "Kamiah Brown"
-data: 2024-10-16
-output: github_document
+title:"P8105 Homework 3"
+author:"Kamiah Brown"
+data:2024-10-16
+output:github_document
 ---
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+```
+
 ```{r}
 install.packages(
   c("tidyverse", "knitr", "rmarkdown", "janitor", "broom", "here", "readxl", "haven", "rnoaa", "ggridges", "ggthemes", "leaflet", "viridis", "skimr","rvest", "httr", "flexdashboard", "devtools", "usethis", "modelr", "mgcv","tidytext", "shiny", "patchwork", "glmnet", "plotly"))
 
 remotes::install_github("p8105/p8105.datasets")
 remotes::install_github("ropensci/rnoaa")
-
 ```
 
 #Set up 
 ```{r}
- library(tidyverse)
+library(tidyverse)
 library(ggridges)
 library(haven)
 library(knitr)
@@ -164,7 +168,7 @@ The high school category has a greater difference compared to the 'high school' 
 
 #Create visualization
 ```{r}
-ggplot(final_data, aes(x = age, fill = sex)) +
+ggplot(demographic_data_clean, aes(x = age, fill = sex)) +
   geom_histogram(binwidth = 5, position = "dodge", alpha = 0.8) + 
   facet_wrap(~ education, scales = "free_y") +  
   labs(
@@ -177,16 +181,21 @@ ggplot(final_data, aes(x = age, fill = sex)) +
 ```
 The graph shows the age distribution by gender and education level, categorized into 'less than high school,' 'high school,' and 'some college.' Among those with less than a high school education, the graph reveals that a significant portion of individuals fall in the 60-80 age range, indicating that older individuals are more likely to have less formal education. However, there is also a notable presence of individuals in the 40-60 age group. This suggests that lower education levels are more common among older generations, potentially reflecting historical trends where fewer individuals had access to or pursued higher education. The smaller number of younger individuals in this category suggests that younger generations are receiving higher levels of education, likely due to increased scholastic opportunities and societal changes that promotes education. In the high school category, there are noticeable peaks in the 40-60 age group, suggesting that high school completion is a common level of education across a wide range of ages. Men tend to be more represented in the younger age groups (ages 20-40) compared to women, indicating that younger men are more likely to complete high school compared to their women counterparts. However, in the 70-80 age group, women surpass men, which may reflect historical trends where women returned to education later in life. This difference between genders in the older age group suggests that women in past generations may have had fewer opportunities for early education but returned later to complete their high school education (also displayed in the ‘less than high school’. Lastly, in the some college category, the graph shows a significant concentration of younger individuals, particularly women in the 20-40 age range. This implies that there has been a shift in pursuing higher education beyond high school, especially among younger generations. Women, in particular, are more likely to pursue "some college" education early in life, suggesting that societal trends have shifted towards encouraging women to seek higher education opportunities at younger ages.
 
-#data cleaning; forgot to merge data set together 
+#data cleaning
 ```{r}
 accelerometer_long <- accelerometer_data |>
-  pivot_longer(cols = starts_with("min"), 
-               names_to = "minute", 
-               values_to = "MIMS")
+  pivot_longer(
+    cols = starts_with("min"), 
+    names_to = "minute",        
+    values_to = "MIMS"          
+  )
+
+accelerometer_long <- accelerometer_long |>
+  mutate(minute = as.numeric(gsub("min", "", minute)))
 
 total_activity_data <- accelerometer_long |>
-  group_by(SEQN) |>
-  summarise(total_activity = sum(MIMS, na.rm = TRUE))
+  group_by(SEQN, minute) |>
+  summarise(MIMS = sum(MIMS, na.rm = TRUE))
 
 total_activity_data <- total_activity_data |>
   mutate(SEQN = as.character(SEQN))
@@ -197,12 +206,19 @@ demographic_data_clean <- demographic_data_clean |>
 final_data <- total_activity_data |>
   left_join(demographic_data_clean, by = "SEQN")
 
-head(final_data)
+final_data_clean <- final_data |>
+  filter(
+    !is.na(MIMS) & !is.na(age) & !is.na(sex) & 
+    !is.infinite(MIMS) & !is.infinite(age)
+  )
+
+head(final_data_clean)
+
 ```
 
 #plotting activities
 ```{r}
-ggplot(final_data, aes(x = age, y = total_activity, color = sex)) +
+ggplot(final_data_clean, aes(x = age, y = MIMS, color = sex)) +
   geom_point(alpha = 0.6) +  
   geom_smooth(method = "lm", se = FALSE) +  
   facet_wrap(~ education, scales = "free_y") +  
@@ -220,21 +236,6 @@ In less than high school, men and women have similar activity levels when they a
 In high school, women with a high school education tend to be more active with a gradual decline afterwards. Overall, women with a high school education tend to be more active than men. Men tend to be less active and also have a less noticeable decline in activity compared to women. 
 
 For some college, activity levels tend to remain stable across ages among women and men. There tends to be more consistent activity, but women are more likely to be active than men in this category. This also shows that unlike those with a 'less than high school' and 'high school' education, those with 'some college' education are consistently active throughout their life. 
-
-```{r}
-ggplot(final_data, aes(x = as.numeric(minute), y = MIMS, color = sex)) +
-  geom_line(alpha = 0.6) + 
-  geom_smooth(method = "loess", se = FALSE) +  
-  facet_wrap(~ education, scales = "free_y") +  
-  labs(
-    title = "24-Hour Activity Time Courses by Education Level and Gender",
-    x = "Time (Minutes from Midnight)",
-    y = "Activity (MIMS)",
-    color = "Gender"
-  ) +
-  theme_minimal() + 
-  theme(legend.position = "bottom")
-```
 
 #Problem 2
 three-panel plot that shows the 24-hour activity time courses for each education level and use color to indicate sex
@@ -257,7 +258,7 @@ final_data <- accelerometer_long |>
   left_join(demographic_data_clean, by = "SEQN")
 
 #Plot 
-ggplot(final_data, aes(x = minute, y = MIMS, color = sex)) +
+ggplot(final_data_clean, aes(x = minute, y = MIMS, color = sex)) +
   geom_line(alpha = 0.6) +  
   geom_smooth(method = "loess", se = FALSE) +  
   facet_wrap(~ education, scales = "free_y") + 
